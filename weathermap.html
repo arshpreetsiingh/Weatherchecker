@@ -1,0 +1,214 @@
+<!-- File: dynamic_weather_website.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Weather Website</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-...your-sha512-hash-here..." crossorigin="anonymous" />
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #3498db;
+            color: #fff;
+        }
+
+        #weather-header {
+            font-size: 36px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #weather-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            margin-bottom: 20px;
+        }
+
+        #loader {
+            display: none;
+            margin-top: 20px;
+        }
+
+        #dynamic-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            filter: blur(5px);
+            transition: filter 0.5s ease-in-out;
+        }
+
+        #weather-icon {
+            font-size: 72px;
+            margin-bottom: 10px;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        #extra-features {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        #extra-features button {
+            background-color: #2ecc71;
+            color: #fff;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s ease-in-out;
+        }
+
+        #extra-features button:hover {
+            background-color: #27ae60;
+        }
+
+        /* Updated the color for weather description */
+        #weather-details p {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <h1 id="weather-header">Weather</h1>
+
+    <div id="loader"></div>
+
+    <div id="weather-info">
+        <img id="weather-icon" alt="Weather Icon">
+        <div id="weather-details"></div>
+    </div>
+
+    <div id="dynamic-background"></div>
+
+    <div id="extra-features">
+        <!-- Add more features/buttons as needed -->
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Call getWeather() automatically when the page loads
+            getWeather();
+            // Set interval to refresh weather every 10 minutes
+            setInterval(getWeather, 600000);
+            // Call toggleBackground() automatically based on time of day
+            toggleBackground();
+        });
+
+        async function getWeather() {
+            const loader = document.getElementById('loader');
+            const weatherDetails = document.getElementById('weather-details');
+            const weatherIcon = document.getElementById('weather-icon');
+            const dynamicBackground = document.getElementById('dynamic-background');
+
+            try {
+                loader.style.display = 'block';
+                weatherDetails.innerHTML = '';
+
+                const position = await getCurrentPosition();
+                const apiKey = '26b365048016f814bbf6e5ed178b00ba';
+                const url = `http://api.weatherstack.com/current?access_key=${apiKey}&query=${position.latitude},${position.longitude}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.error) {
+                    weatherDetails.innerHTML = 'Weather data not available';
+                } else {
+                    const weatherDetailsHTML = `
+                        <p><strong>Location:</strong> ${data.location.name}, ${data.location.country}</p>
+                        <p><strong>Current Temperature:</strong> ${data.current.temperature}°C</p>
+                        <p><strong>Description:</strong> ${data.current.weather_descriptions[0]}</p>
+                    `;
+                    weatherDetails.innerHTML = weatherDetailsHTML;
+
+                    // Update background based on weather description and time of day
+                    updateBackground(data.current.weather_descriptions[0]);
+
+                    // Update weather icon
+                    updateWeatherIcon(data.current.weather_icons[0], weatherIcon);
+                }
+            } catch (error) {
+                console.error('Error fetching weather data:', error);
+                weatherDetails.innerHTML = 'An error occurred';
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function toggleBackground() {
+            const dynamicBackground = document.getElementById('dynamic-background');
+            const currentFilter = dynamicBackground.style.filter || 'blur(5px)';
+            const currentHour = new Date().getHours();
+            // Automatically toggle background based on time of day
+            if (currentHour >= 6 && currentHour < 18) {
+                dynamicBackground.style.filter = 'blur(0px)';
+            } else {
+                dynamicBackground.style.filter = 'blur(5px)';
+            }
+        }
+
+        async function getCurrentPosition() {
+            return new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    position => resolve(position.coords),
+                    error => reject(error)
+                );
+            });
+        }
+
+        function updateBackground(weatherDescription) {
+            const dynamicBackground = document.getElementById('dynamic-background');
+            let filterValue = 'blur(5px)';
+            let backgroundColor = '#3498db';
+
+            const currentHour = new Date().getHours();
+            if (currentHour >= 6 && currentHour < 18) {
+                backgroundColor = '#87ceeb';
+                filterValue = 'blur(0)';
+            }
+
+            if (weatherDescription.includes('clear')) {
+                backgroundColor = '#87ceeb';
+                filterValue = 'blur(0)';
+            } else if (weatherDescription.includes('cloud')) {
+                backgroundColor = '#808080';
+            } else if (weatherDescription.includes('rain')) {
+                backgroundColor = '#4682b4';
+            } else if (weatherDescription.includes('snow')) {
+                backgroundColor = '#f0f8ff';
+            } else if (weatherDescription.includes('storm')) {
+                backgroundColor = '#4b0082';
+            }
+
+            dynamicBackground.style.backgroundColor = backgroundColor;
+            dynamicBackground.style.filter = filterValue;
+        }
+
+        function updateWeatherIcon(weatherIconUrl, weatherIconElement) {
+            weatherIconElement.src = weatherIconUrl;
+        }
+    </script>
+
+</body>
+</html>
